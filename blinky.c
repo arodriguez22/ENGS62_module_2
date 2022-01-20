@@ -17,25 +17,19 @@
 #include "led.h"
 #include "io.h"
 #include "gic.h"
-#include "xttcps.h"
+#include "ttc.h"
 
 #define OUTPUT 0x0							/* setting GPIO direction to output */
 #define CHANNEL1 1							/* channel 1 of the GPIO port */
 
-static XTtcPs timerPort;
+
 
 void callback(u32 led_num){
 	led_toggle(led_num);
 }
 
-void timer_callback(void *dev){
-	//printf("entered handler function\n\r");
-	XTtcPs *timer = (XTtcPs*)dev; // ask if this is necessary
-	//printf("timer:%d\n\r", XTtcPs_GetCounterValue(timer));
+void timer_callback(){
 	led_toggle(4);
-	XTtcPs_ClearInterruptStatus(timer, XTTCPS_IXR_INTERVAL_MASK);
-
-
 }
 
 
@@ -46,33 +40,13 @@ int main() {
    if (gic_init() == 0){
 	   io_btn_init(callback);
 	   io_sw_init(callback);
+	   led_init();
+	   ttc_init(1, timer_callback);
+	   ttc_start();
    }
    size_t BUFF = 80;
    char line[BUFF];
 
-   led_init();
-
-   XTtcPs_Config *config = XTtcPs_LookupConfig(XPAR_XTTCPS_0_DEVICE_ID);
-   s32 started = XTtcPs_CfgInitialize(&timerPort, config, config->BaseAddress);
-
-   if (started==0){
-	   XInterval inter;
-	   u8 prescale;
-	   // how many times per second
-	   u32 frequ = 1;
-	   XTtcPs_CalcIntervalFromFreq(&timerPort, frequ, &inter, &prescale);
-	   XTtcPs_SetPrescaler(&timerPort, prescale);
-	   XTtcPs_SetInterval(&timerPort, inter);
-	   if (XTtcPs_SetOptions(&timerPort, XTTCPS_OPTION_INTERVAL_MODE)==0){
-		   XTtcPs_DisableInterrupts(&timerPort, XTTCPS_IXR_INTERVAL_MASK);
-		   gic_connect(XPAR_XTTCPS_0_INTR, timer_callback, &timerPort);
-		   XTtcPs_EnableInterrupts(&timerPort, XTTCPS_IXR_INTERVAL_MASK);
-		   XTtcPs_Start(&timerPort);
-		   XTtcPs_GetInterruptStatus(&timerPort);
-		   //printf("started timer\n\r");
-	   }
-
-   }
 
 
 
@@ -82,8 +56,6 @@ int main() {
 		*/
 	 setvbuf(stdin,NULL,_IONBF,0);
 	 printf("[Hello]\n");
-
-	 led_set(4, true);
 
 	 void getLine(char *final_string, size_t size){
 		 char curr;
@@ -136,13 +108,15 @@ int main() {
 
 	}while(strcmp(line, "q") != 0);
 
+
+	ttc_stop();
 	led_set(ALL, false);
+	led_set(4, false);
 
 
 	io_btn_close();
 	io_sw_close();
-	XTtcPs_Stop(&timerPort);
-	gic_disconnect(XPAR_XTTCPS_0_INTR);
+	ttc_close();
 	gic_close();
 	cleanup_platform();					/* cleanup the hardware platform */
 	return 0;

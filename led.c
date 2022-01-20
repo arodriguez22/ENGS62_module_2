@@ -1,5 +1,3 @@
-#pragma once
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <xgpio.h>		  	/* axi gpio */
@@ -113,6 +111,16 @@ void led_set(u32 led, bool tostate){
 		}
 	}
 
+	if (led>6){
+		return;
+	}
+
+	if (tostate){
+		printf("[%ld on]\n\r", led);
+	}else{
+		printf("[%ld on]\n\r", led);
+	}
+
 	XGpio_DiscreteWrite(&port, CHANNEL1, current_reg);
 }
 
@@ -188,6 +196,10 @@ bool led_get(u32 led){
 
 	}
 
+	if (led>=5){
+		return LED_OFF;
+	}
+
 	return LED_OFF;
 
 }
@@ -202,10 +214,8 @@ void led_toggle(u32 led){
 
 	if (led_get(led) == LED_OFF){
 		led_set(led, LED_ON);
-		printf("[%ld on]\n\r", led);
 	}else{
 		led_set(led, LED_OFF);
-		printf("[%ld off]\n\r", led);
 	}
 
 }
